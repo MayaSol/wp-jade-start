@@ -35,6 +35,7 @@ let config = {
   'dir': {
     'src': 'src/',
     'build': 'build/',
+    'remote': '/var/www/wp-jade-start/wp-content/themes/default',
     'blocks': 'src/blocks/',
     'phpTemplates': { "pages/": "",
                       "inc/": "inc/",

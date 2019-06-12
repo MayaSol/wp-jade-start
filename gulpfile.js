@@ -40,9 +40,10 @@ const merge = require('merge-stream');
 const imagemin = require('gulp-imagemin');
 const prettyHtml = require('gulp-pretty-html');
 const replace = require('gulp-replace');
-const ghpages = require('gh-pages');
-const path = require('path');
+//const ghpages = require('gh-pages');
+//const path = require('path');
 const filter = require('gulp-filter');
+const insert = require('gulp-insert');
 //const gfi = require('gulp-file-insert');
 
 // Глобальные настройки этого запуска
@@ -83,8 +84,12 @@ let postCssPlugins = [
 ];
 
 //
-//  const pugFilter = filter(['**/pages/**/*.pug','**/template-parts/**/*.pug'],{restore: true});
   const pagesFilter = filter('**/pages/*.*',{restore:true});
+  const styleTitle = 'Theme Name: default \n Theme URI: https://github.com/MayaSol/wp-jade-start \n Author: MayaSol \n Author URI: https://github.com/MayaSol \n Description: Description \n Version: 1.0.0';
+// License: GNU General Public License v2 or later
+// License URI: LICENSE
+// Text Domain: aero
+// Tags:"
 
 function writePugMixinsFile(cb) {
   let allBlocksWithPugFiles = getDirectories('pug');
@@ -278,11 +283,15 @@ function writeSassImportsFile(cb) {
   });
   let diff = getArraysDiff(newScssImportsList, nth.scssImportsList);
   if (diff.length) {
+    //let title = `/*!*${styleTitle}\n*/`;
+    //let styleImports = title;
     let msg = `\n/*!*${doNotEditMsg.replace(/\n /gm,'\n * ').replace(/\n\n$/,'\n */\n\n')}`;
+    console.log('msg: ' + msg);
     let styleImports = msg;
     newScssImportsList.forEach(function(src) {
       styleImports += `@import "${src}";\n`;
     });
+    console.log('styleImports: ' + styleImports);
     styleImports += msg;
     fs.writeFileSync(`${dir.src}scss/style.scss`, styleImports);
     console.log('---------- Write new style.scss');
@@ -311,7 +320,8 @@ function compileSass() {
     .pipe(csso({
       restructure: false,
     }))
-    .pipe(dest(`${dir.build}/css`, { sourcemaps: '.' }))
+    .pipe(insert.prepend(`/*${styleTitle}\n*/`))
+    .pipe(dest(`${dir.build}`, { sourcemaps: '.' }))
     .pipe(browserSync.stream());
 }
 exports.compileSass = compileSass;
@@ -391,16 +401,34 @@ function clearBuildDir() {
 }
 exports.clearBuildDir = clearBuildDir;
 
+function clearRemote() {
+  return del([
+    `${dir.remote}/**`,
+    `!${dir.remote}`
+  ],{force:true});
+}
+exports.clearRemote = clearRemote;
+
 
 function reload(done) {
   browserSync.reload();
   done();
 }
 
-function deploy(cb) {
-  ghpages.publish(path.join(process.cwd(), dir.build), cb);
+// function deploy(cb) {
+//   ghpages.publish(path.join(process.cwd(), dir.build), cb);
+// }
+// exports.deploy = deploy;
+
+function deployRemote(cb) {
+  let src = `**/*`;
+  console.log(src);
+  let dest = '/var/www/wp-jade-start/wp-content/themes/default/';
+  cpy(src, dest,{parents: 'true', cwd: `${dir.build}`});
+  cb();
 }
-exports.deploy = deploy;
+exports.deployRemote = deployRemote;
+
 
 
 function serve() {
@@ -515,6 +543,11 @@ exports.default = series(
   parallel(copyImg, writeSassImportsFile, writeJsRequiresFile),
   parallel(compileSass, buildJs),
   serve,
+);
+
+exports.deploy = series(
+  clearRemote,
+  deployRemote,
 );
 
 
